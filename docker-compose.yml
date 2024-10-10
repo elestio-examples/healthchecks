@@ -1,0 +1,50 @@
+version: "3"
+services:
+  db:
+    image: elestio/postgres:16
+    volumes:
+      - ./db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    ports:
+      - 172.17.0.1:49327:5432
+
+  healthchecks:
+    image: healthchecks/healthchecks:${SOFTWARE_VERSION_TAG}
+    command: bash -c 'while !</dev/tcp/db/5432; do sleep 1; done; uwsgi /opt/healthchecks/docker/uwsgi.ini'
+    environment:
+      - SITE_ROOT=https://${DOMAIN}
+      - SITE_NAME=My Healthchecks
+      - DB=postgres
+      - DB_HOST=db
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=5432
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_USER=postgres
+      - DEBUG=False
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL}
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - EMAIL_USE_TLS=False
+      # - ALLOWED_HOSTS=["*"]
+      - SECRET_KEY=${SECRET_KEY}
+      - REGENERATE_SETTINGS=True
+    volumes:
+      - ./healthchecks:/data
+      - ./create_admin.py:/opt/healthchecks/hc/accounts/management/commands/create_admin.py
+    ports:
+      - "172.17.0.1:35595:8000"
+    restart: always
+
+  pgadmin4:
+    image: elestio/pgadmin:latest
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${ADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${ADMIN_PASSWORD}
+      PGADMIN_LISTEN_PORT: 8080
+    ports:
+      - "172.17.0.1:16904:8080"
+    volumes:
+      - ./servers.json:/pgadmin4/servers.json
